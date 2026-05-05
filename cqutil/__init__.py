@@ -1,5 +1,4 @@
 from cqutil import markers
-from cqutil.align import align
 from cqutil.dump import dump
 from cqutil.extract import (
     PartBuilder,
@@ -11,10 +10,11 @@ from cqutil.models import (
     Direction,
     Face,
     Hole,
-    Part,
+    PartData,
     Slot,
     Vec3,
 )
+from cqutil.part import Part
 
 __all__ = [
     "BoundingBox",
@@ -23,9 +23,9 @@ __all__ = [
     "Hole",
     "Part",
     "PartBuilder",
+    "PartData",
     "Slot",
     "Vec3",
-    "align",
     "dump",
     "markers",
     "scan",

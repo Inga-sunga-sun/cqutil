@@ -15,3 +15,13 @@ class Slot:
     @property
     def radius(self) -> float:
         return self.width / 2
+
+    def shifted(self, delta: Vec3) -> "Slot":
+        return Slot(
+            center=self.center + delta,
+            length=self.length,
+            width=self.width,
+            long_axis=self.long_axis,
+            depth=self.depth,
+            index=self.index,
+        )

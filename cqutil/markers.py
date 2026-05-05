@@ -1,8 +1,6 @@
-from functools import singledispatch
-
 import cadquery as cq
 
-from cqutil.models import Face, Part, Vec3
+from cqutil.models import Face, Vec3
 
 _MARKER_RADIUS = 0.5
 _MARKER_HEIGHT = 5.0
@@ -63,27 +61,21 @@ def _point_marker(
     )
 
 
-@singledispatch
-def holes(obj) -> list[cq.Assembly]:
-    raise NotImplementedError(f"holes() not supported for {type(obj).__name__}")
-
-
-@holes.register
-def _(face: Face) -> list[cq.Assembly]:
+def _markers_at(positions: list[Vec3], normal: Vec3) -> list[cq.Assembly]:
     color = _color_with_alpha(_MARKER_COLOR_NAME, _MARKER_ALPHA)
-    items = [*face.holes, *face.slots]
-    return [
-        _point_marker(item.center, str(i), face.direction, color)
-        for i, item in enumerate(items)
-    ]
+    return [_point_marker(p, str(i), normal, color) for i, p in enumerate(positions)]
 
 
-@holes.register
-def _(part: Part) -> list[cq.Assembly]:
-    result: list[cq.Assembly] = []
-    for face in part.faces:
-        result.extend(holes(face))
-    return result
+def holes(face: Face) -> list[cq.Assembly]:
+    return _markers_at([h.center for h in face.holes], face.direction)
+
+
+def slots(face: Face) -> list[cq.Assembly]:
+    return _markers_at([s.center for s in face.slots], face.direction)
+
+
+def corners(face: Face) -> list[cq.Assembly]:
+    return _markers_at(face.corners, face.direction)
 
 
 def faces(workplane: cq.Workplane) -> list[cq.Assembly]:

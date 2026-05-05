@@ -13,7 +13,7 @@ CadQuery で読み込んだ STEP モデルから、設計値 (面の位置・穴
 pip install git+https://github.com/Inga-sunga-sun/cqutil.git
 ```
 
-cadquery を再インストールされたくない場合は普通にこれで OK です (`dependencies` に cadquery を入れていないため、pip は cadquery に触りません)。
+cadquery を再インストールされたくない場合も普通にこれで OK です (`dependencies` に cadquery を入れていないため、pip は cadquery に触りません)。
 
 ## クイックスタート
 
@@ -24,7 +24,7 @@ from ocp_vscode import show
 
 plate = cq.importers.importStep("plate.stp")
 
-# Part を組み立てる: 底面 + 上面 + bbox
+# Part (wrapper) を組み立てる: 底面 + 上面 + bbox
 plate_part = (cu.scan(plate)
     .face("-Z")
     .face("+Z")
@@ -34,9 +34,14 @@ plate_part = (cu.scan(plate)
 # 数値をテキストツリーで確認
 cu.dump(plate_part)
 
-# 可視化
-markers = cu.markers.holes(plate_part)   # 穴・長孔の位置に円柱マーカー
-show(plate, markers)
+# 可視化 (Face を渡すだけ)
+face0 = plate_part.faces[0]
+show(
+    plate_part.workplane,
+    cu.markers.holes(face0),
+    cu.markers.slots(face0),
+    cu.markers.corners(face0),
+)
 ```
 
 `cu.dump` の出力例:
@@ -56,17 +61,56 @@ plate_part
 
 ## 部品の積み重ね (アセンブリ位置決め)
 
-回転は事前に済ませて、`cu.align` で平行移動だけかける。
+回転は事前に済ませて、`Part.move_to` で平行移動だけかける。
 
 ```python
-base_anchor  = cu.scan(base ).face("+Z").build().faces[0].holes[0].center
-plate_anchor = cu.scan(plate).face("-Z").build().faces[0].holes[0].center
+base_part  = cu.scan(base ).face("+Z").build()
+plate_part = cu.scan(plate).face("-Z").face("+Z").build()
 
-plate_pos = cu.align(plate, source=plate_anchor, target=base_anchor)
-# plate の底面 hole #0 が base の上面 hole #0 に重なるように plate 全体を平行移動した新 Workplane
+plate_at = plate_part.move_to(
+    source=plate_part.faces[0].holes[0].center,    # plate の底面 hole #0
+    target=base_part.faces[0].holes[0].center,     # base の天面 hole #0
+)
+
+# plate_at は新しい Part (wrapper)
+plate_at.workplane                              # 移動済みの cq.Workplane
+plate_at.faces[0].holes[0].center               # delta シフト後の Vec3 (= base_part.faces[0].holes[0].center に一致)
+
+# 上に更に積む例
+bracket_part = cu.scan(bracket).face("-Z").build()
+bracket_at = bracket_part.move_to(
+    source=bracket_part.faces[0].holes[0].center,
+    target=plate_at.faces[1].holes[0].center,    # plate_at の上面 hole #0 に
+)
+
+show(plate_at.workplane, bracket_at.workplane)
 ```
 
-返り値は新しい `cq.Workplane` なので、そのまま `cu.scan(plate_pos).face("+Z").build()` で次の層のアンカー取得に使える (積み重ね可能)。
+`Part.move_to(source, target)` は内部で `data` (数値) と `workplane` (cadquery 幾何) を**同じ delta で同時シフト**します。再 scan 不要。
+
+## 「STEP 原点を Part の角に合わせる」ような用途も
+
+`source` / `target` は任意の Vec3 を取れるので:
+
+```python
+# bbox 角を世界原点に
+plate_at_origin = plate_part.move_to(
+    source=plate_part.bbox.min,
+    target=Vec3(0, 0, 0),
+)
+
+# 中心を世界原点に
+plate_centered = plate_part.move_to(
+    source=plate_part.bbox.center,
+    target=Vec3(0, 0, 0),
+)
+
+# 面の特定の角を任意の点に
+plate_corner_at = plate_part.move_to(
+    source=plate_part.faces[0].corners[0],   # 底面の左下角
+    target=Vec3(10, 20, 0),
+)
+```
 
 ## API 概要
 
@@ -75,47 +119,57 @@ plate_pos = cu.align(plate, source=plate_anchor, target=base_anchor)
 | シグネチャ | 役割 |
 |---|---|
 | `cu.scan(wp: cq.Workplane) -> PartBuilder` | チェインビルダのエントリ |
-| `PartBuilder.face(direction) -> PartBuilder` | 指定方向の最端面を Part に追加 |
+| `PartBuilder.face(direction) -> PartBuilder` | 指定方向の最端面を加える |
 | `PartBuilder.bbox() -> PartBuilder` | 部品全体の BoundingBox を計算 |
-| `PartBuilder.build() -> Part` | Part を確定 |
-| `cu.select_extreme_faces(wp, direction, tol=1e-6) -> cq.Workplane` | 低レベル: 方向指定で最端面を選択 |
+| `PartBuilder.build() -> Part` | Part (wrapper) を確定 |
+| `cu.select_extreme_faces(wp, direction, tol=1e-6) -> cq.Workplane` | 低レベル: 方向指定で最端面選択 |
 
 `direction` は `"+X" / "-X" / "+Y" / "-Y" / "+Z" / "-Z"`。
+
+### Part (wrapper)
+
+| メンバ | 役割 |
+|---|---|
+| `part.workplane` | 中身の `cq.Workplane` |
+| `part.data` | 抽出データ (`PartData`) |
+| `part.faces` | data のショートカット (`part.data.faces` と等価) |
+| `part.bbox` | data のショートカット |
+| `part.shifted(delta) -> Part` | delta シフトした新 Part |
+| `part.move_to(source, target) -> Part` | source 点を target 点に重ねるよう平行移動した新 Part |
 
 ### 表示
 
 | シグネチャ | 役割 |
 |---|---|
-| `cu.dump(part: Part, name: str \| None = None)` | Part をツリー出力。`name` 省略時は変数名を自動検出 |
+| `cu.dump(part: Part \| PartData, name=None)` | ツリー出力。`name` 省略時は変数名を自動検出 |
 
 ### 可視化マーカー
 
 | シグネチャ | 役割 |
 |---|---|
-| `cu.markers.holes(face_or_part) -> list[cq.Assembly]` | 穴・長孔の中心に円柱 + 番号ラベル。Hole/Slot 両方含む |
+| `cu.markers.holes(face: Face) -> list[cq.Assembly]` | face の穴中心に円柱 + 番号ラベル |
+| `cu.markers.slots(face: Face) -> list[cq.Assembly]` | face のスロット中心に同上 |
+| `cu.markers.corners(face: Face) -> list[cq.Assembly]` | face の各角に同上 |
 | `cu.markers.faces(wp: cq.Workplane) -> list[cq.Assembly]` | Workplane 内の各面をハイライト |
 
-### 操作
-
-| シグネチャ | 役割 |
-|---|---|
-| `cu.align(part: cq.Workplane, source: Vec3, target: Vec3) -> cq.Workplane` | `source` 点が `target` 点に重なるよう平行移動 (回転は呼び出し側で済ませる) |
+すべて Face 単位。Part 全体に適用したい場合は `for face in part.faces:` でループ。
 
 ### データモデル (`cqutil.models`)
 
 | 型 | 主なフィールド |
 |---|---|
 | `Vec3(x, y, z)` | 3D ベクトル。`+`, `-`, `*`, `length`, `normalized()` 等 |
-| `BoundingBox(min, max)` | `.size`, `.center` |
-| `Hole` | `center`, `diameter`, `depth`, `index` |
-| `Slot` | `center`, `length`, `width`, `long_axis`, `depth`, `index` |
-| `Face` | `direction`, `center`, `size`, `holes`, `slots` |
-| `Part` | `bbox`, `faces` |
+| `BoundingBox(min, max)` | `.size`, `.center`, `.shifted(delta)` |
+| `Hole` | `center`, `diameter`, `depth`, `index`, `.shifted(delta)` |
+| `Slot` | `center`, `length`, `width`, `long_axis`, `depth`, `index`, `.shifted(delta)` |
+| `Face` | `direction`, `center`, `size`, `corners`, `holes`, `slots`, `.shifted(delta)` |
+| `PartData` | `bbox`, `faces`, `.shifted(delta)` |
 | `Direction` | `Literal["+X" \| "-X" \| "+Y" \| "-Y" \| "+Z" \| "-Z"]` |
 
 ## 設計メモ
 
 - `cqutil.models` は cadquery 非依存の純 dataclass
-- 抽出 (`extract.py`) のみ cadquery / OCP を直接利用
+- `cqutil.part` の `Part` クラスのみが cadquery `Workplane` を保持 (= 「数値 + 幾何」の窓口)
+- 抽出 (`extract.py`) は cadquery / OCP を直接利用
 - 自動全件スキャンはせず、`scan().face("-Z")` のように **面を明示選択** するチェイン API
 - 数値抽出が主目的。SVG 等の装飾系は提供しない

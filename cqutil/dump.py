@@ -1,7 +1,8 @@
 import ast
 import inspect
 
-from cqutil.models import Face, Hole, Part, Slot, Vec3
+from cqutil.models import Face, Hole, PartData, Slot, Vec3
+from cqutil.part import Part
 
 _FLOAT_FMT = "{:>9.3f}"
 _AXIS_TOL = 1e-6
@@ -76,28 +77,30 @@ def _face_lines(face: Face, idx: int, last: bool) -> list[str]:
     )
     lines = [header]
 
-    holes = face.holes
-    slots = face.slots
-    has_slots = bool(slots)
+    sections: list[tuple[str, list, callable]] = []
+    if face.corners:
+        sections.append(("corners", face.corners,
+                         lambda c, i: f"[{i}] {_fmt_vec(c)}"))
+    if face.holes:
+        sections.append(("holes", face.holes,
+                         lambda h, _i: _hole_line(h)))
+    if face.slots:
+        sections.append(("slots", face.slots,
+                         lambda s, _i: _slot_line(s)))
 
-    if holes:
-        h_branch = "├─" if has_slots else "└─"
-        h_cont = "│ " if has_slots else "  "
-        lines.append(f"{cont} {h_branch} holes ({len(holes)})")
-        for i, h in enumerate(holes):
-            leaf = "└─" if i == len(holes) - 1 else "├─"
-            lines.append(f"{cont} {h_cont} {leaf} {_hole_line(h)}")
-
-    if slots:
-        lines.append(f"{cont} └─ slots ({len(slots)})")
-        for i, s in enumerate(slots):
-            leaf = "└─" if i == len(slots) - 1 else "├─"
-            lines.append(f"{cont}    {leaf} {_slot_line(s)}")
+    for sec_idx, (name, items, fmt) in enumerate(sections):
+        is_last_sec = sec_idx == len(sections) - 1
+        sec_branch = "└─" if is_last_sec else "├─"
+        sec_cont = "  " if is_last_sec else "│ "
+        lines.append(f"{cont} {sec_branch} {name} ({len(items)})")
+        for i, item in enumerate(items):
+            leaf = "└─" if i == len(items) - 1 else "├─"
+            lines.append(f"{cont} {sec_cont} {leaf} {fmt(item, i)}")
 
     return lines
 
 
-def _part_lines(part: Part, name: str) -> list[str]:
+def _part_lines(part: Part | PartData, name: str) -> list[str]:
     lines = [name]
 
     has_faces = bool(part.faces)
@@ -121,7 +124,7 @@ def _part_lines(part: Part, name: str) -> list[str]:
     return lines
 
 
-def dump(part: Part, name: str | None = None) -> None:
+def dump(part: Part | PartData, name: str | None = None) -> None:
     if name is None:
         name = _detect_argname() or type(part).__name__
     print("\n".join(_part_lines(part, name)))

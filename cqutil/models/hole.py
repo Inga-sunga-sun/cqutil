@@ -13,3 +13,11 @@ class Hole:
     @property
     def radius(self) -> float | None:
         return self.diameter / 2 if self.diameter is not None else None
+
+    def shifted(self, delta: Vec3) -> "Hole":
+        return Hole(
+            center=self.center + delta,
+            diameter=self.diameter,
+            depth=self.depth,
+            index=self.index,
+        )

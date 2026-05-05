@@ -15,3 +15,6 @@ class BoundingBox:
     @property
     def center(self) -> Vec3:
         return (self.min + self.max) * 0.5
+
+    def shifted(self, delta: Vec3) -> "BoundingBox":
+        return BoundingBox(min=self.min + delta, max=self.max + delta)

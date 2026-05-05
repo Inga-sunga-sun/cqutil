@@ -8,10 +8,11 @@ from cqutil.models import (
     Direction,
     Face,
     Hole,
-    Part,
+    PartData,
     Slot,
     Vec3,
 )
+from cqutil.part import Part
 
 
 def _to_vec3(v: cq.Vector) -> Vec3:
@@ -169,6 +170,15 @@ def _extract_bbox(obj: cq.Workplane) -> BoundingBox:
     )
 
 
+def _face_outer_vertices(coplanar_faces: list[cq.Face]) -> list[Vec3]:
+    points: list[Vec3] = []
+    for f in coplanar_faces:
+        for v in f.outerWire().Vertices():
+            p = v.Center()
+            points.append(Vec3(p.x, p.y, p.z))
+    return points
+
+
 def _build_face(
     coplanar_faces: list[cq.Face], all_faces: list[cq.Face],
 ) -> Face:
@@ -177,6 +187,7 @@ def _build_face(
         direction=_to_vec3(normal),
         center=_cq_face_center(coplanar_faces),
         size=_cq_face_size(coplanar_faces),
+        corners=_face_outer_vertices(coplanar_faces),
         holes=_extract_holes(coplanar_faces, all_faces),
         slots=_extract_slots(coplanar_faces, all_faces),
     )
@@ -214,20 +225,20 @@ class PartBuilder:
     def __init__(self, workplane: cq.Workplane):
         self._wp = workplane
         self._all_faces: list[cq.Face] = workplane.faces().vals()
-        self._part = Part()
+        self._data = PartData()
 
     def face(self, direction: Direction) -> "PartBuilder":
         cqfaces: list[cq.Face] = select_extreme_faces(self._wp, direction).vals()
         if cqfaces:
-            self._part.faces.append(_build_face(cqfaces, self._all_faces))
+            self._data.faces.append(_build_face(cqfaces, self._all_faces))
         return self
 
     def bbox(self) -> "PartBuilder":
-        self._part.bbox = _extract_bbox(self._wp)
+        self._data.bbox = _extract_bbox(self._wp)
         return self
 
     def build(self) -> Part:
-        return self._part
+        return Part(workplane=self._wp, data=self._data)
 
 
 def scan(workplane: cq.Workplane) -> PartBuilder:
