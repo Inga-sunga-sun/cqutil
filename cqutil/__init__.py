@@ -4,6 +4,7 @@ from cqutil.extract import (
     PartBuilder,
     scan,
     select_extreme_faces,
+    select_faces_at,
 )
 from cqutil.models import (
     BoundingBox,
@@ -30,4 +31,5 @@ __all__ = [
     "markers",
     "scan",
     "select_extreme_faces",
+    "select_faces_at",
 ]

@@ -120,9 +120,11 @@ plate_corner_at = plate_part.move_to(
 |---|---|
 | `cu.scan(wp: cq.Workplane) -> PartBuilder` | チェインビルダのエントリ |
 | `PartBuilder.face(direction) -> PartBuilder` | 指定方向の最端面を加える |
+| `PartBuilder.face_at(direction, position) -> PartBuilder` | 指定方向・指定位置の面を加える (奥まった面用) |
 | `PartBuilder.bbox() -> PartBuilder` | 部品全体の BoundingBox を計算 |
 | `PartBuilder.build() -> Part` | Part (wrapper) を確定 |
 | `cu.select_extreme_faces(wp, direction, tol=1e-6) -> cq.Workplane` | 低レベル: 方向指定で最端面選択 |
+| `cu.select_faces_at(wp, direction, position, tol=1e-6) -> cq.Workplane` | 低レベル: 方向 + 位置で面選択 |
 
 `direction` は `"+X" / "-X" / "+Y" / "-Y" / "+Z" / "-Z"`。
 
@@ -150,7 +152,7 @@ plate_corner_at = plate_part.move_to(
 | `cu.markers.holes(face: Face) -> list[cq.Assembly]` | face の穴中心に円柱 + 番号ラベル |
 | `cu.markers.slots(face: Face) -> list[cq.Assembly]` | face のスロット中心に同上 |
 | `cu.markers.corners(face: Face) -> list[cq.Assembly]` | face の各角に同上 |
-| `cu.markers.faces(wp: cq.Workplane) -> list[cq.Assembly]` | Workplane 内の各面をハイライト |
+| `cu.markers.faces(face: Face) -> list[cq.Assembly]` | face を corners から再構築してハイライト (長方形面のみ正確) |
 
 すべて Face 単位。Part 全体に適用したい場合は `for face in part.faces:` でループ。
 

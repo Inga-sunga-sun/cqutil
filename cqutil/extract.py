@@ -221,6 +221,25 @@ def select_extreme_faces(
     return obj.newObject(selected_faces)
 
 
+def select_faces_at(
+    obj: cq.Workplane,
+    direction: Direction,
+    position: float,
+    tol: float = 1e-6,
+) -> cq.Workplane:
+    sign = direction[0]
+    axis = direction[1].lower()
+    target_normal_sign = 1.0 if sign == "+" else -1.0
+
+    selected = [
+        face for face in obj.faces().vals()
+        if face.geomType() == "PLANE"
+        and abs(getattr(face.normalAt(), axis) - target_normal_sign) < tol
+        and abs(getattr(face.Center(), axis) - position) < tol
+    ]
+    return obj.newObject(selected)
+
+
 class PartBuilder:
     def __init__(self, workplane: cq.Workplane):
         self._wp = workplane
@@ -228,9 +247,13 @@ class PartBuilder:
         self._data = PartData()
 
     def face(self, direction: Direction) -> "PartBuilder":
-        cqfaces: list[cq.Face] = select_extreme_faces(self._wp, direction).vals()
-        if cqfaces:
-            self._data.faces.append(_build_face(cqfaces, self._all_faces))
+        for cqf in select_extreme_faces(self._wp, direction).vals():
+            self._data.faces.append(_build_face([cqf], self._all_faces))
+        return self
+
+    def face_at(self, direction: Direction, position: float) -> "PartBuilder":
+        for cqf in select_faces_at(self._wp, direction, position).vals():
+            self._data.faces.append(_build_face([cqf], self._all_faces))
         return self
 
     def bbox(self) -> "PartBuilder":

@@ -9,8 +9,8 @@ _MARKER_COLOR_NAME = "pink"
 _MARKER_ALPHA = 0.9
 _LABEL_INPLANE_OFFSET_RATIO = 0.3
 
-_FACE_MARKER_COLOR_NAME = "pink"
-_FACE_MARKER_ALPHA = 0.5
+_FACE_MARKER_COLOR_NAME = "skyblue"
+_FACE_MARKER_ALPHA = 0.7
 
 
 def _to_cq_vector(v: Vec3) -> cq.Vector:
@@ -78,9 +78,15 @@ def corners(face: Face) -> list[cq.Assembly]:
     return _markers_at(face.corners, face.direction)
 
 
-def faces(workplane: cq.Workplane) -> list[cq.Assembly]:
+def faces(face: Face) -> list[cq.Assembly]:
+    if len(face.corners) < 3:
+        return []
+    pts = [cq.Vector(c.x, c.y, c.z) for c in face.corners]
+    wire = cq.Wire.makePolygon(pts, close=True)
+    cq_face = cq.Face.makeFromWires(wire)
     color = _color_with_alpha(_FACE_MARKER_COLOR_NAME, _FACE_MARKER_ALPHA)
-    return [
-        cq.Assembly(face, color=color, name=str(i))
-        for i, face in enumerate(workplane.faces().vals())
-    ]
+    return [cq.Assembly(
+        cq.Compound.makeCompound([cq_face]),
+        color=color,
+        name="face",
+    )]
