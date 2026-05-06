@@ -187,26 +187,28 @@ plate_corner_at = plate_part.move_to(
 
 | シグネチャ | 役割 |
 |---|---|
-| `cu.project(points: list[Vec3], axes="xy") -> list[tuple[float, float]]` | 各点から指定 2 軸を抜いて 2D タプルにする。`axes="xy" / "xz" / "yz"` |
+| `cu.project(points, axes="xy") -> list[tuple[float, float]]` | 各点から指定 2 軸を抜いて 2D タプルにする。`axes="xy" / "xz" / "yz"` |
+
+`points` は `Vec3` のリストでも、`.center: Vec3` を持つオブジェクトのリスト（`Hole` / `Slot` など）でもそのまま渡せる。
 
 ```python
-# 既定 "xy"
-xy_pts = cu.project([h.center for h in face.holes])
+# Hole のリストをそのまま投入 (.center 自動抽出)
+xy_pts = cu.project(face.holes)
 result = dst_wp.pushPoints(xy_pts).hole(5.0)
 
 # 異径混在は径ごとにグルーピング (cadquery の hole は 1 径ずつ)
 from collections import defaultdict
 by_d = defaultdict(list)
 for h in face.holes:
-    by_d[h.diameter].append(h.center)
+    by_d[h.diameter].append(h)
 
 wp = dst_wp
-for d, pts in by_d.items():
-    wp = wp.pushPoints(cu.project(pts)).hole(d)
+for d, holes in by_d.items():
+    wp = wp.pushPoints(cu.project(holes)).hole(d)
 
 # corners や slots 中心も同じ流儀
 dst_wp.pushPoints(cu.project(face.corners)).hole(2.0)
-dst_wp.pushPoints(cu.project([s.center for s in face.slots])).hole(3.0)
+dst_wp.pushPoints(cu.project(face.slots)).hole(3.0)
 ```
 
 ### データモデル (`cqutil.models`)

@@ -1,8 +1,10 @@
 from cqutil.models import Vec3
 
 
-def project(
-    points: list[Vec3], axes: str = "xy",
-) -> list[tuple[float, float]]:
+def project(points, axes: str = "xy") -> list[tuple[float, float]]:
     a, b = axes
-    return [(getattr(p, a), getattr(p, b)) for p in points]
+    result: list[tuple[float, float]] = []
+    for p in points:
+        v = p if isinstance(p, Vec3) else p.center
+        result.append((getattr(v, a), getattr(v, b)))
+    return result
