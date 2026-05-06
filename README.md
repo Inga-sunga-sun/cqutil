@@ -215,8 +215,8 @@ dst_wp.pushPoints(cu.project([s.center for s in face.slots])).hole(3.0)
 |---|---|
 | `Vec3(x, y, z)` | 3D ベクトル。`+`, `-`, `*`, `length`, `normalized()` 等 |
 | `BoundingBox(min, max)` | `.size`, `.center`, `.shifted(delta)` |
-| `Hole` | `center`, `diameter`, `depth`, `index`, `.shifted(delta)` |
-| `Slot` | `center`, `length`, `width`, `long_axis`, `depth`, `index`, `.shifted(delta)` |
+| `Hole` | `center`, `diameter`, `depth`, `index`, `.radius`, `.shifted(delta)` |
+| `Slot` | `center`, `length`, `width`, `long_axis`, `depth`, `index`, `.radius`, `.shifted(delta)` |
 | `Face` | `direction`, `center`, `size`, `corners`, `holes`, `slots`, `.shifted(delta)`, `.corner_at(x, y, z)`, `.corners_max`, `.corners_min` |
 | `PartData` | `bbox`, `faces`, `.shifted(delta)` |
 | `Direction` | `Literal["+X" \| "-X" \| "+Y" \| "-Y" \| "+Z" \| "-Z"]` |
