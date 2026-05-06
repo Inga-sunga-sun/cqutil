@@ -88,6 +88,28 @@ show(plate_at.workplane, bracket_at.workplane)
 
 `Part.move_to(source, target)` は内部で `data` (数値) と `workplane` (cadquery 幾何) を**同じ delta で同時シフト**します。再 scan 不要。
 
+### オフセット (隙間・浮き上がり)
+
+`target` に `Vec3` を足すか、`.shifted(...)` を続ける:
+
+```python
+# A: target にオフセットを足す (合わせ先をずらす)
+offset = Vec3(0, 0, 5)
+plate_at = plate_part.move_to(
+    source=plate_part.faces[0].holes[0].center,
+    target=base_part.faces[0].holes[0].center + offset,
+)
+
+# B: move_to の後に shifted を続ける (重ねたあとに浮かせる)
+plate_at = (
+    plate_part
+    .move_to(plate_part.faces[0].holes[0].center, base_part.faces[0].holes[0].center)
+    .shifted(Vec3(0, 0, 5))
+)
+```
+
+`move_to` / `shifted` は新しい `Part` を返すので、戻り値を変数で受けないと結果が捨てられる。
+
 ## 「STEP 原点を Part の角に合わせる」ような用途も
 
 `source` / `target` は任意の Vec3 を取れるので:
@@ -158,13 +180,33 @@ plate_corner_at = plate_part.move_to(
 
 ### 2D 投影 (cadquery `pushPoints` 連携)
 
+`cu.project` は **world 軸基準** で 2 軸を抜き出す。`pushPoints` 側の workplane は
+**原点が world (0, 0, _) で軸が world と一致** している前提（例:
+`cq.Workplane("XY", origin=(0, 0, h))`）。`.faces(...).workplane()` で
+面に乗せる流儀だと原点・向きがずれて噛み合わないので注意。
+
 | シグネチャ | 役割 |
 |---|---|
 | `cu.project(points: list[Vec3], axes="xy") -> list[tuple[float, float]]` | 各点から指定 2 軸を抜いて 2D タプルにする。`axes="xy" / "xz" / "yz"` |
 
 ```python
-xy_pts = cu.project([h.center for h in face.holes])           # 既定 "xy"
+# 既定 "xy"
+xy_pts = cu.project([h.center for h in face.holes])
 result = dst_wp.pushPoints(xy_pts).hole(5.0)
+
+# 異径混在は径ごとにグルーピング (cadquery の hole は 1 径ずつ)
+from collections import defaultdict
+by_d = defaultdict(list)
+for h in face.holes:
+    by_d[h.diameter].append(h.center)
+
+wp = dst_wp
+for d, pts in by_d.items():
+    wp = wp.pushPoints(cu.project(pts)).hole(d)
+
+# corners や slots 中心も同じ流儀
+dst_wp.pushPoints(cu.project(face.corners)).hole(2.0)
+dst_wp.pushPoints(cu.project([s.center for s in face.slots])).hole(3.0)
 ```
 
 ### データモデル (`cqutil.models`)
