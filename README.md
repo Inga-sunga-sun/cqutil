@@ -156,6 +156,17 @@ plate_corner_at = plate_part.move_to(
 
 すべて Face 単位。Part 全体に適用したい場合は `for face in part.faces:` でループ。
 
+### 2D 投影 (cadquery `pushPoints` 連携)
+
+| シグネチャ | 役割 |
+|---|---|
+| `cu.project(points: list[Vec3], axes="xy") -> list[tuple[float, float]]` | 各点から指定 2 軸を抜いて 2D タプルにする。`axes="xy" / "xz" / "yz"` |
+
+```python
+xy_pts = cu.project([h.center for h in face.holes])           # 既定 "xy"
+result = dst_wp.pushPoints(xy_pts).hole(5.0)
+```
+
 ### データモデル (`cqutil.models`)
 
 | 型 | 主なフィールド |
@@ -164,7 +175,7 @@ plate_corner_at = plate_part.move_to(
 | `BoundingBox(min, max)` | `.size`, `.center`, `.shifted(delta)` |
 | `Hole` | `center`, `diameter`, `depth`, `index`, `.shifted(delta)` |
 | `Slot` | `center`, `length`, `width`, `long_axis`, `depth`, `index`, `.shifted(delta)` |
-| `Face` | `direction`, `center`, `size`, `corners`, `holes`, `slots`, `.shifted(delta)` |
+| `Face` | `direction`, `center`, `size`, `corners`, `holes`, `slots`, `.shifted(delta)`, `.corner_at(x, y, z)`, `.corners_max`, `.corners_min` |
 | `PartData` | `bbox`, `faces`, `.shifted(delta)` |
 | `Direction` | `Literal["+X" \| "-X" \| "+Y" \| "-Y" \| "+Z" \| "-Z"]` |
 

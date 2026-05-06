@@ -16,6 +16,7 @@ from cqutil.models import (
     Vec3,
 )
 from cqutil.part import Part
+from cqutil.projection import project
 
 __all__ = [
     "BoundingBox",
@@ -29,6 +30,7 @@ __all__ = [
     "Vec3",
     "dump",
     "markers",
+    "project",
     "scan",
     "select_extreme_faces",
     "select_faces_at",
